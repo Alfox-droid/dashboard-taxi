@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Taxi - Alfredo</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  body { background: #0f1115; color: #e6e8ec; padding: 16px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;}
+  header h1 { font-size: 24px; font-weight: 700; }
+  header p { color: #8b92a0; font-size: 14px; margin-top: 4px; }
+  .btn-reset { background:#2a1f1f; color:#f87171; border:1px solid #3a2020; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px;}
+  .btn-reset:hover { background:#3a2020; }
+  
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: #1a1d24; border-radius: 14px; padding: 16px; border: 1px solid #232730; }
+  .kpi .label { font-size: 11px; color: #8b92a0; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi .value { font-size: 22px; font-weight: 700; margin-top: 6px; }
+  .kpi .sub { font-size: 12px; margin-top: 4px; color: #8b92a0; }
+  .green { color: #4ade80; } .red { color: #f87171; } .blue { color: #60a5fa; } .yellow { color: #fbbf24; }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+  
+  .card { background: #1a1d24; border-radius: 14px; padding: 20px; border: 1px solid #232730; margin-bottom: 20px;}
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: #cfd3dc; }
+  
+  /* Formulario */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 12px;}
+  .form-grid input, .form-grid select {
+    background:#0f1115; border:1px solid #2a2f3a; color:#e6e8ec; padding:10px 12px; border-radius:8px; font-size:14px; width:100%;
+  }
+  .form-grid input:focus, .form-grid select:focus { outline:none; border-color:#60a5fa; }
+  .btn-add {
+    background:#1e3a2b; color:#4ade80; border:1px solid #2c5038; padding:10px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;
+  }
+  .btn-add:hover { background:#2c5038; }
+  .btn-del {
+    background:#2a1f1f; color:#f87171; border:1px solid #3a2020; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;
+  }
+  
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 6px; color: #8b92a0; font-weight: 500; border-bottom: 1px solid #232730; font-size: 11px; text-transform: uppercase; }
+  td { padding: 8px 6px; border-bottom: 1px solid #1f2329; }
+  tr:last-child td { border-bottom: none; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(74,222,128,0.15); color: #4ade80; }
+  .badge-red { background: rgba(248,113,113,0.15); color: #f87171; }
+  .badge-yellow { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .badge-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
+  
+  .tabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+  .tab { background:#1a1d24; border:1px solid #232730; color:#8b92a0; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px;}
+  .tab.active { background:#232730; color:#e6e8ec; border-color:#3a4050; }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+  
+  footer { text-align: center; color: #5a6070; font-size: 12px; padding: 24px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div>
+      <h1>🚕 Dashboard Taxi</h1>
+      <p id="periodLabel">Periodo: 01 - 10 de Octubre 2026</p>
+    </div>
+    <button class="btn-reset" onclick="resetData()">🗑️ Reiniciar datos</button>
+  </header>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi">
+      <div class="label">Ingresos Netos</div>
+      <div class="value green" id="kpiIncome">S/ 0.00</div>
+      <div class="sub">App + Fuera de app</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Gastos Operativos</div>
+      <div class="value red" id="kpiExpense">- S/ 0.00</div>
+      <div class="sub">Total del periodo</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Utilidad Neta</div>
+      <div class="value blue" id="kpiProfit">S/ 0.00</div>
+      <div class="sub" id="kpiMargin">0% margen</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Promedio Diario</div>
+      <div class="value yellow" id="kpiDaily">S/ 0.00</div>
+      <div class="sub" id="kpiTrips">0 viajes</div>
+    </div>
+  </div>
+
+  <!-- Formulario de registro -->
+  <div class="card">
+    <h2>➕ Registrar nuevo movimiento</h2>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('trip')">🚕 Viaje</div>
+      <div class="tab" onclick="switchTab('expense')">💸 Gasto</div>
+    </div>
+
+    <!-- Form Viaje -->
+    <div class="tab-content active" id="tab-trip">
+      <div class="form-grid">
+        <input type="date" id="tripDate">
+        <input type="time" id="tripTime" value="12:00">
+        <input type="text" id="tripRoute" placeholder="Origen / Destino">
+        <input type="number" id="tripGross" placeholder="Ganancia bruta (S/)" step="0.01">
+        <select id="tripType">
+          <option value="app">App (con comisión ~15%)</option>
+          <option value="offapp">Fuera de app (sin comisión)</option>
+        </select>
+        <button class="btn-add" onclick="addTrip()">Agregar viaje</button>
+      </div>
+    </div>
+
+    <!-- Form Gasto -->
+    <div class="tab-content" id="tab-expense">
+      <div class="form-grid">
+        <input type="date" id="expDate">
+        <select id="expCategory">
+          <option value="Combustible">⛽ Combustible</option>
+          <option value="Recargas Apps">📱 Recargas Apps</option>
+          <option value="Alimentación">☕ Alimentación / Varios</option>
+          <option value="Mantenimiento">🔧 Mantenimiento</option>
+          <option value="Otros">❓ Otros</option>
+        </select>
+        <input type="text" id="expDetail" placeholder="Detalle">
+        <input type="number" id="expAmount" placeholder="Monto (S/)" step="0.01">
+        <button class="btn-add" onclick="addExpense()">Agregar gasto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráficos -->
+  <div class="grid-2">
+    <div class="card" style="margin-bottom:0;">
+      <h2>📈 Balance Diario</h2>
+      <canvas id="dailyChart" height="220"></canvas>
+    </div>
+    <div class="card" style="margin-bottom:0;">
+      <h2>🥧 Distribución de Gastos</h2>
+      <canvas id="expenseChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Tabla viajes -->
+  <div class="card" style="margin-top:20px;">
+    <h2>🚕 Historial de Viajes</h2>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Ruta</th>
+            <th>Tipo</th>
+            <th class="num">Bruto</th>
+            <th class="num">Comisión</th>
+            <th class="num">Neto</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tripsTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tabla gastos -->
+  <div class="card">
+    <h2>💸 Historial de Gastos</h2>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Categoría</th>
+            <th>Detalle</th>
+            <th class="num">Monto</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="expensesTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>💾 Los datos se guardan en tu navegador · Uso familiar (María) como factor externo</footer>
+</div>
+
+<script>
+// ==================== DATOS INICIALES ====================
+const INITIAL_TRIPS = [
+  // Formato: {date, time, route, type:'app'|'offapp', gross}
+  {date:'2026-10-01', time:'03:00', route:'Av. las Almendras - Salaverry', type:'app', gross:6.15},
+  {date:'2026-10-01', time:'04:52', route:'Panamericana N - C.9 Mz.U', type:'app', gross:25.64},
+  {date:'2026-10-01', time:'22:08', route:'Túpac Amaru 4610 - Calle 3', type:'app', gross:15.39},
+  {date:'2026-10-01', time:'23:12', route:'Av. Perú', type:'app', gross:15.39},
+  {date:'2026-10-02', time:'00:15', route:'Carlos Izaguirre - Condorcanqui', type:'app', gross:19.48},
+  {date:'2026-10-03', time:'03:04', route:'Mariátegui 162 - Carabayllo', type:'app', gross:3.88},
+  {date:'2026-10-03', time:'03:11', route:'Jirón la Veronica 315', type:'app', gross:42.35},
+  {date:'2026-10-03', time:'04:20', route:'New Brunch - Revolución 12', type:'app', gross:12.24},
+  {date:'2026-10-03', time:'05:06', route:'A.h Valle de Jesus Etapa 2', type:'app', gross:22.55},
+  {date:'2026-10-03', time:'05:56', route:'Av. Los Falsanes', type:'app', gross:43.07},
+  {date:'2026-10-03', time:'06:27', route:'C. A - Mall Plaza Comas', type:'app', gross:17.44},
+  {date:'2026-10-03', time:'06:43', route:'Av. Metropolitana 128', type:'app', gross:12.29},
+  {date:'2026-10-03', time:'11:34', route:'Luis Pardo Mz.AB - Lt.12', type:'app', gross:18.46},
+  {date:'2026-10-03', time:'16:38', route:'Av. San Genaro 1068', type:'app', gross:12.60},
+  {date:'2026-10-03', time:'16:12', route:'José Bernardo Alcedo 888', type:'app', gross:9.22},
+  {date:'2026-10-04', time:'15:19', route:'Daniel Portocarrero 328', type:'app', gross:20.51},
+  {date:'2026-10-04', time:'18:54', route:'Ca, Los Andes 501', type:'app', gross:43.07},
+  {date:'2026-10-04', time:'19:52', route:'Ferrocarril Central Mz.H - Lt.8', type:'app', gross:35.88},
+  {date:'2026-10-04', time:'21:04', route:'Ignacio Alvarez Thomas 1569', type:'app', gross:32.81},
+  {date:'2026-10-04', time:'23:14', route:'Pasaje García 148', type:'app', gross:30.75},
+  {date:'2026-10-05', time:'00:00', route:'Jirón Tungasuca 188', type:'app', gross:25.64},
+  {date:'2026-10-05', time:'00:33', route:'Teodoro Garrido 441', type:'app', gross:25.64},
+  {date:'2026-10-05', time:'01:11', route:'Calle B Mz.A - Lt.3', type:'app', gross:22.55},
+  {date:'2026-10-05', time:'01:44', route:'Calle 113 316', type:'app', gross:8.90},
+  {date:'2026-10-05', time:'21:43', route:'Francisco Reyes 137 - Calle 20', type:'app', gross:30.75},
+  {date:'2026-10-05', time:'22:54', route:'Parque Maguiño - Ferretería', type:'app', gross:14.36},
+  {date:'2026-10-05', time:'23:07', route:'Las Magnolias - Plaza Cívica', type:'app', gross:10.25},
+  {date:'2026-10-05', time:'23:39', route:'Señor de los Milagros - Vista Alegre', type:'app', gross:17.43},
+  {date:'2026-10-06', time:'22:04', route:'Túpac Amaru 3872 - Caudivilla', type:'app', gross:10.25},
+  {date:'2026-10-06', time:'22:32', route:'Villa Caudivilla - 28 de Marzo', type:'app', gross:6.15},
+  {date:'2026-10-06', time:'23:15', route:'Av. Chillón Trapiche - San Juan 3b', type:'app', gross:8.20},
+  {date:'2026-10-07', time:'01:11', route:'Los Geranios - Los Jazmines Mz.D', type:'app', gross:28.71},
+  {date:'2026-10-07', time:'02:03', route:'Carlos Izaguirre Mz.I1 - Vallejo 2', type:'app', gross:19.17},
+  {date:'2026-10-07', time:'02:37', route:'Sta. Leonor 6332 - Sta. Leonor 6369', type:'app', gross:15.39},
+  {date:'2026-10-07', time:'02:56', route:'Lopez 259 - Comisaría Collique', type:'app', gross:14.36},
+  {date:'2026-10-07', time:'22:25', route:'Pedro Ruiz Gallo 302 - Cedros 292', type:'app', gross:10.25},
+  {date:'2026-10-07', time:'22:41', route:'Jirón Candamo 598 - CEVICHERIA FISH', type:'app', gross:10.25},
+  {date:'2026-10-07', time:'23:44', route:'Condominio Los Girasoles - Jaén & Bellavista', type:'app', gross:41.01},
+  {date:'2026-10-08', time:'00:39', route:'Ancash 390 - Jr. Fitzcarrald', type:'app', gross:35.36},
+  {date:'2026-10-08', time:'00:56', route:'El Olivar - Ca. Rosa Parks', type:'app', gross:13.32},
+  {date:'2026-10-08', time:'01:44', route:'Av. los Dominicos - El Zapaton', type:'app', gross:35.88},
+  {date:'2026-10-08', time:'02:21', route:'San Jenaro - Casuarinas', type:'app', gross:10.25},
+  {date:'2026-10-08', time:'03:15', route:'Basadre Grohmann - Torre Ugarte 190', type:'app', gross:46.14},
+  {date:'2026-10-08', time:'04:49', route:'Los Postes Oeste 342 - Chacra Cerro', type:'app', gross:31.16},
+  {date:'2026-10-08', time:'05:10', route:'Confraternidad 612 - Juan Regal 116', type:'app', gross:12.29},
+  {date:'2026-10-08', time:'05:33', route:'Barreto 105 - Hipólito Unanue Mz.F', type:'app', gross:15.39},
+  {date:'2026-10-08', time:'22:31', route:'Miguel Grau 193a - Santa Fe 470', type:'app', gross:15.39},
+  {date:'2026-10-08', time:'22:57', route:'Talara 331 - C.14 Mz.K - Lt.1', type:'app', gross:22.55},
+  {date:'2026-10-09', time:'00:11', route:'Urb Mercurio Etapa 1 - La Planicie Etapa II', type:'app', gross:41.01},
+  {date:'2026-10-09', time:'01:20', route:'Ma. de los Angeles 478 - San Francisco 300', type:'app', gross:21.53},
+  {date:'2026-10-09', time:'01:40', route:'Nicolás de Piérola 981 - La Caridad 988', type:'app', gross:22.26},
+  {date:'2026-10-09', time:'02:48', route:'Globo Terráqueo 7131 - Huaycan Zona G', type:'app', gross:46.14},
+  {date:'2026-10-09', time:'03:35', route:'Pedro Ruiz Gallo - Plaza Norte', type:'app', gross:26.87},
+  {date:'2026-10-09', time:'04:06', route:'Germán Aguirre 1628 - Pachacutec Mz.I', type:'app', gross:28.71},
+  {date:'2026-10-09', time:'04:25', route:'Av. Revolución 1573 - Tinta 164', type:'app', gross:6.15},
+  {date:'2026-10-10', time:'00:06', route:'Av Retablo 681 - Las Gardenias', type:'app', gross:30.75},
+  {date:'2026-10-10', time:'01:22', route:'Abtao - Av. Canta Callao', type:'app', gross:41.01},
+  {date:'2026-10-10', time:'02:26', route:'Jirón Rio Chira 535 - OASIS ANCON', type:'app', gross:39.58},
+  {date:'2026-10-10', time:'02:54', route:'Pasaje 6 Mz.B - Condominio La Pradera', type:'app', gross:20.51},
+  {date:'2026-10-10', time:'03:24', route:'Óvalo Puente Piedra - C.18 Mz.E', type:'app', gross:15.39},
+  {date:'2026-10-10', time:'03:36', route:'El Rápido - Daniel Alcides Carrión 224', type:'app', gross:10.25},
+  {date:'2026-10-10', time:'03:51', route:'Rafael Paucar 154', type:'app', gross:7.18},
+  {date:'2026-10-10', time:'04:09', route:'C. Diascia Mz.V - Av Sta Elvira 6128', type:'app', gross:15.39},
+  {date:'2026-10-10', time:'04:24', route:'Av. 25 de Enero 250 - Colmena 933', type:'app', gross:13.32},
+  {date:'2026-10-10', time:'04:50', route:'Túpac Amaru 3686 - San Martín de Porres', type:'app', gross:12.29},
+  // Fuera de app
+  {date:'2026-10-05', time:'12:00', route:'Entrega de taladro', type:'offapp', gross:40.00},
+  {date:'2026-10-06', time:'12:00', route:'Viaje no pagado', type:'offapp', gross:-16.00},
+  {date:'2026-10-07', time:'12:00', route:'Retorno Carabayllo - Los Olivos', type:'offapp', gross:40.00},
+  {date:'2026-10-08', time:'12:00', route:'Jóvenes a discoteca', type:'offapp', gross:30.00}
+];
+
+const INITIAL_EXPENSES = [
+  {date:'2026-10-01', category:'Alimentación', detail:'2 Vita cafe + led1 + led2', amount:20.00},
+  {date:'2026-10-01', category:'Otros', detail:'Limpiatipo para celular', amount:3.00},
+  {date:'2026-10-01', category:'Combustible', detail:'Recarga GLP', amount:48.00},
+  {date:'2026-10-02', category:'Alimentación', detail:'Vita café', amount:6.00},
+  {date:'2026-10-03', category:'Combustible', detail:'GLP', amount:47.00},
+  {date:'2026-10-03', category:'Recargas Apps', detail:'Yango', amount:25.60},
+  {date:'2026-10-03', category:'Alimentación', detail:'2 Vita cafe', amount:12.00},
+  {date:'2026-10-03', category:'Mantenimiento', detail:'Bieletas estabilizador', amount:50.00},
+  {date:'2026-10-03', category:'Mantenimiento', detail:'Gata tipo torreta', amount:50.00},
+  {date:'2026-10-04', category:'Combustible', detail:'Gasolina', amount:50.00},
+  {date:'2026-10-04', category:'Combustible', detail:'GLP', amount:48.00},
+  {date:'2026-10-04', category:'Alimentación', detail:'Vita café', amount:6.00},
+  {date:'2026-10-04', category:'Recargas Apps', detail:'InDriver', amount:20.00},
+  {date:'2026-10-05', category:'Alimentación', detail:'Cocochi + led + supernova', amount:5.00},
+  {date:'2026-10-05', category:'Alimentación', detail:'2 Vitas cafés', amount:10.00},
+  {date:'2026-10-06', category:'Combustible', detail:'GLP', amount:46.00},
+  {date:'2026-10-06', category:'Alimentación', detail:'Kit energía led 1&2 supernova', amount:14.00},
+  {date:'2026-10-07', category:'Combustible', detail:'GLP', amount:38.00},
+  {date:'2026-10-07', category:'Recargas Apps', detail:'InDriver', amount:20.00},
+  {date:'2026-10-07', category:'Alimentación', detail:'2 chocotejas', amount:2.00},
+  {date:'2026-10-08', category:'Alimentación', detail:'2 kekes', amount:4.00},
+  {date:'2026-10-08', category:'Combustible', detail:'GLP', amount:50.60},
+  {date:'2026-10-08', category:'Recargas Apps', detail:'InDriver', amount:20.00},
+  {date:'2026-10-09', category:'Combustible', detail:'GLP', amount:48.00},
+  {date:'2026-10-09', category:'Recargas Apps', detail:'InDriver', amount:20.00},
+  {date:'2026-10-09', category:'Alimentación', detail:'Kit energía led + supernova', amount:10.00},
+  {date:'2026-10-10', category:'Combustible', detail:'GLP', amount:40.00},
+  {date:'2026-10-10', category:'Recargas Apps', detail:'InDriver', amount:20.00},
+  {date:'2026-10-10', category:'Alimentación', detail:'2 Vitas cafés + keke', amount:14.00}
+];
+
+// ==================== STORAGE ====================
+const STORAGE_KEY = 'taxiDashboard_v1';
+
+function loadData() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) return JSON.parse(saved);
+  return { trips: INITIAL_TRIPS, expenses: INITIAL_EXPENSES };
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+let data = loadData();
+
+// ==================== RENDER ====================
+let dailyChart, expenseChart;
+
+function render() {
+  // --- Cálculos ---
+  const trips = data.trips;
+  const expenses = data.expenses;
+
+  let totalNet = 0, totalGross = 0, totalComm = 0;
+  trips.forEach(t => {
+    const net = t.type === 'app' ? t.gross * 0.85 : t.gross;
+    const comm = t.type === 'app' ? t.gross * 0.15 : 0;
+    totalNet += net;
+    totalGross += t.gross;
+    totalComm += comm;
+  });
+
+  const totalExp = expenses.reduce((s, e) => s + e.amount, 0);
+  const profit = totalNet - totalExp;
+  const margin = totalNet > 0 ? (profit / totalNet * 100) : 0;
+
+  // Días activos
+  const dates = new Set([...trips.map(t=>t.date), ...expenses.map(e=>e.date)]);
+  const dayCount = dates.size || 1;
+  const dailyAvg = profit / dayCount;
+
+  // KPI DOM
+  document.getElementById('kpiIncome').textContent  = 'S/ ' + totalNet.toFixed(2);
+  document.getElementById('kpiExpense').textContent = '- S/ ' + totalExp.toFixed(2);
+  document.getElementById('kpiProfit').textContent  = 'S/ ' + profit.toFixed(2);
+  document.getElementById('kpiMargin').textContent  = margin.toFixed(1) + '% margen';
+  document.getElementById('kpiDaily').textContent   = 'S/ ' + dailyAvg.toFixed(2);
+  document.getElementById('kpiTrips').textContent   = trips.length + ' viajes';
+
+  // --- Tabla de viajes ---
+  const tbodyT = document.getElementById('tripsTable');
+  tbodyT.innerHTML = '';
+  [...trips].sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time)).forEach((t, i) => {
+    const origIdx = data.trips.indexOf(t);
+    const net = t.type === 'app' ? t.gross * 0.85 : t.gross;
+    const comm = t.type === 'app' ? t.gross * 0.15 : 0;
+    const badge = t.type === 'app' ? 'badge-blue' : 'badge-green';
+    const typeLabel = t.type === 'app' ? 'App' : 'Fuera';
+    tbodyT.innerHTML += `
+      <tr>
+        <td>${t.date}</td>
+        <td>${t.time}</td>
+        <td>${t.route}</td>
+        <td><span class="badge ${badge}">${typeLabel}</span></td>
+        <td class="num">S/ ${t.gross.toFixed(2)}</td>
+        <td class="num red">${comm > 0 ? '- S/ ' + comm.toFixed(2) : '—'}</td>
+        <td class="num green">S/ ${net.toFixed(2)}</td>
+        <td><button class="btn-del" onclick="deleteTrip(${origIdx})">✕</button></td>
+      </tr>`;
+  });
+
+  // --- Tabla de gastos ---
+  const tbodyE = document.getElementById('expensesTable');
+  tbodyE.innerHTML = '';
+  [...expenses].sort((a,b) => b.date.localeCompare(a.date)).forEach(e => {
+    const origIdx = data.expenses.indexOf(e);
+    tbodyE.innerHTML += `
+      <tr>
+        <td>${e.date}</td>
+        <td>${e.category}</td>
+        <td>${e.detail}</td>
+        <td class="num red">- S/ ${e.amount.toFixed(2)}</td>
+        <td><button class="btn-del" onclick="deleteExpense(${origIdx})">✕</button></td>
+      </tr>`;
+  });
+
+  // --- Gráficos ---
+  updateCharts(trips, expenses);
+}
+
+function updateCharts(trips, expenses) {
+  // Agrupar por fecha
+  const dailyMap = {};
+  trips.forEach(t => {
+    if (!dailyMap[t.date]) dailyMap[t.date] = {income: 0, expense: 0};
+    const net = t.type === 'app' ? t.gross * 0.85 : t.gross;
+    dailyMap[t.date].income += net;
+  });
+  expenses.forEach(e => {
+    if (!dailyMap[e.date]) dailyMap[e.date] = {income: 0, expense: 0};
+    dailyMap[e.date].expense += e.amount;
+  });
+  const dates = Object.keys(dailyMap).sort();
+  const labels = dates.map(d => d.slice(5)); // MM-DD
+  const incomes = dates.map(d => dailyMap[d].income);
+  const exps    = dates.map(d => dailyMap[d].expense);
+
+  // Chart diario
+  if (dailyChart) dailyChart.destroy();
+  dailyChart = new Chart(document.getElementById('dailyChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Ingresos', data: incomes, backgroundColor: '#4ade80', borderRadius: 4 },
+        { label: 'Gastos',   data: exps,    backgroundColor: '#f87171', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8b92a0', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#8b92a0', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#8b92a0', font: { size: 10 } }, grid: { color: '#232730' } }
+      }
+    }
+  });
+
+  // Chart gastos por categoría
+  const catMap = {};
+  expenses.forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + e.amount; });
+  const catLabels = Object.keys(catMap);
+  const catValues = catLabels.map(k => catMap[k]);
+  const colors = ['#f87171', '#60a5fa', '#fbbf24', '#a78bfa', '#4ade80'];
+
+  if (expenseChart) expenseChart.destroy();
+  expenseChart = new Chart(document.getElementById('expenseChart'), {
+    type: 'doughnut',
+    data: {
+      labels: catLabels,
+      datasets: [{ data: catValues, backgroundColor: colors.slice(0, catLabels.length), borderWidth: 0 }]
+    },
+    options: {
+      responsive: true,
+      cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { color: '#8b92a0', font: { size: 11 }, padding: 10 } } }
+    }
+  });
+}
+
+// ==================== ACCIONES ====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function addTrip() {
+  const date = document.getElementById('tripDate').value;
+  const time = document.getElementById('tripTime').value;
+  const route = document.getElementById('tripRoute').value.trim();
+  const gross = parseFloat(document.getElementById('tripGross').value);
+  const type = document.getElementById('tripType').value;
+
+  if (!date || !route || isNaN(gross)) return alert('Completa todos los campos del viaje');
+
+  data.trips.push({ date, time, route, type, gross });
+  saveData(data);
+  render();
+
+  // Limpiar
+  document.getElementById('tripRoute').value = '';
+  document.getElementById('tripGross').value = '';
+}
+
+function addExpense() {
+  const date = document.getElementById('expDate').value;
+  const category = document.getElementById('expCategory').value;
+  const detail = document.getElementById('expDetail').value.trim();
+  const amount = parseFloat(document.getElementById('expAmount').value);
+
+  if (!date || !detail || isNaN(amount)) return alert('Completa todos los campos del gasto');
+
+  data.expenses.push({ date, category, detail, amount });
+  saveData(data);
+  render();
+
+  document.getElementById('expDetail').value = '';
+  document.getElementById('expAmount').value = '';
+}
+
+function deleteTrip(idx) {
+  if (!confirm('¿Eliminar este viaje?')) return;
+  data.trips.splice(idx, 1);
+  saveData(data);
+  render();
+}
+
+function deleteExpense(idx) {
+  if (!confirm('¿Eliminar este gasto?')) return;
+  data.expenses.splice(idx, 1);
+  saveData(data);
+  render();
+}
+
+function resetData() {
+  if (!confirm('¿Borrar todos los datos y volver a los originales?')) return;
+  data = { trips: [...INITIAL_TRIPS], expenses: [...INITIAL_EXPENSES] };
+  saveData(data);
+  render();
+}
+
+// ==================== INIT ====================
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('tripDate').value = today;
+document.getElementById('expDate').value = today;
+
+render();
+</script>
+</body>
+</html>
